@@ -96,9 +96,12 @@ jobs:
 
           git diff --check
           git diff --cached --check
-          npm ci --ignore-scripts
-          npm run lint
-          npm run build
+
+          if [[ -f package.json ]]; then
+            npm ci --ignore-scripts
+            npm run lint
+            npm run build
+          fi
 
       - name: Create draft PR and link it to the issue
         if: steps.issue.outputs.found == 'true'

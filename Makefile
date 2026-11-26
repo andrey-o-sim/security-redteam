@@ -1,8 +1,9 @@
 .PHONY: agent-flow agent-show agent-create-issue agent-run agent-block-demo \
 	verify clean help
 
-COURSE_REPO ?= genkovich/course-project
-MALICIOUS_ISSUE ?= 11
+COURSE_REPO ?= andrey-o-sim/security-redteam
+MALICIOUS_ISSUE ?= 2
+GIT_REF ?= master
 
 agent-flow:
 	@sed -n '1,240p' production-agent/agent-flow.md
@@ -24,9 +25,16 @@ agent-create-issue:
 agent-run:
 	@command -v gh >/dev/null || { echo "ERROR: install GitHub CLI first"; exit 1; }
 	@gh auth status >/dev/null
-	@run_url="$$(gh workflow run issue-worker.yml --repo "$(COURSE_REPO)" --ref main)"; \
-		echo "$$run_url"; \
-		run_id="$${run_url##*/}"; \
+	@prev_id="$$(gh run list --repo "$(COURSE_REPO)" --workflow=issue-worker.yml --limit 1 --json databaseId -q '.[0].databaseId // 0')"; \
+		gh workflow run issue-worker.yml --repo "$(COURSE_REPO)" --ref $(GIT_REF); \
+		run_id="$$prev_id"; \
+		tries=0; \
+		while [ "$$run_id" = "$$prev_id" ] && [ "$$tries" -lt 20 ]; do \
+			sleep 1; \
+			run_id="$$(gh run list --repo "$(COURSE_REPO)" --workflow=issue-worker.yml --limit 1 --json databaseId -q '.[0].databaseId // 0')"; \
+			tries=$$((tries + 1)); \
+		done; \
+		echo "https://github.com/$(COURSE_REPO)/actions/runs/$$run_id"; \
 		gh run watch "$$run_id" --repo "$(COURSE_REPO)" --exit-status
 
 agent-block-demo:
